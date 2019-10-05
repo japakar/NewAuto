@@ -15,6 +15,7 @@
 */
 
 // replace backslashes with slashes, Making the behaviour identical on Windows & Linux Systems
+ob_start(); // start output buffering => this allows us to keep the behavior of the script identical on all systems.
 define("DRSR", $_SERVER['DOCUMENT_ROOT']);
 define("FDSR", str_replace("\\","/",dirname(__FILE__)));
 // Determine if the script is inside a subfolder, if it is, isolate the subdirectory from the root path and store it in a Constant
@@ -27,26 +28,29 @@ if(dirname(DRSR) === dirname(FDSR)){
 //allow the script to include files restricted to normal users:
 define("SFR_INC_0_LKEY", true);
 //set the session-related settings to avoid other scripts from messing with these sessions
-if (!file_exists(session_save_path().DIRECTORY_SEPARATOR.DIRREC.'Autofaucet')){
-	mkdir(session_save_path().DIRECTORY_SEPARATOR.DIRREC.'Autofaucet');
+if (!file_exists(session_save_path().DIRREC.DIRECTORY_SEPARATOR.'Autofaucet')){
+	mkdir(session_save_path().DIRREC.DIRECTORY_SEPARATOR.'Autofaucet', 0777, true);
 }
-    session_save_path(session_save_path().DIRECTORY_SEPARATOR.DIRREC.'Autofaucet');
+    session_save_path(session_save_path().DIRREC.DIRECTORY_SEPARATOR.'Autofaucet');
 ini_set('session.gc_probability', 1);
 ini_set('session.gc_maxlifetime', 48*60*60);
 //start the session to save/access variables
 session_start();
 //Load Config, convert it to a parsable PHP array:
-opcache_invalidate("config.php");
-(include FDSR.DIRECTORY_SEPARATOR."config.php") OR die("Something went wrong while trying to load the config file! please make sure your Config file is in the scripts main folder, please also check if PHP has rights to include/require files! (your hosting provider may assist you with this!)");
+(include FDSR.DIRECTORY_SEPARATOR."config.php") OR die("Something went wrong while trying to load the config file! Please make sure your Config file is in the scripts main folder, please also check if PHP has rights to include/require files! (your hosting provider may assist you with this!)");
 //Load Functions, if it fails give out an error and end the script.
-(include_once FDSR.DIRECTORY_SEPARATOR."functions.php") OR die("Something went wrong while trying to load the functions file! please make sure your functions file is in the scripts main folder, please also check if PHP has rights to include/require files! (your hosting provider may assist you with this!)");
-$Config = json_decode($Config, true);
-if($Config === null){
-	die;("Config file is corrupted, please make sure the config is intact")
+(include_once FDSR.DIRECTORY_SEPARATOR."functions.php") OR die("Something went wrong while trying to load the functions file! Please make sure your functions file is in the scripts main folder, please also check if PHP has rights to include/require files! (your hosting provider may assist you with this!)");
+if($Config === ""){
+	$Config = array("ConfigCreated" => true);
+}else{
+	$Config = json_decode($Config, true);
+	if($Config === null){
+		die("Config file is corrupted, please make sure the config is intact!");
+	}
 }
 if(SECKEY === ""){ //checks if the security token is empty (which would be terrible security)
 	UpdateConfig($Config, RandomString(12)); // updates the Security Key WARNING: the second variable WILL CHANGE the Security key, so it shouldnt be called unless intended.
-	redirect(DIRREC."/");
+	redirect(DIRREC."/",302,2);
 }
 if(isset($_SESSION['ErrMSG'])){ // standard error message processing
 	$messages = $messages.WarningMSG("clear", $_SESSION['ErrMSG']);
@@ -81,7 +85,7 @@ if(empty($Config)){ // check if the config exists and is ready to be used. if it
 
 					</form>
 				</div>
-				<blockquote> This Page only Shows if the script is not setup/reset! the form above is only for the site owner, if you are a user please come back at a later time once the site is set up!
+				<blockquote> This Page only Shows if the script is not setup/reset! The form above is only for the site owner, if you are a user please come back at a later time once the site is set up!
 				</blockquote>
 			</div>
 			<div class="col-12 col-md"></div>
@@ -104,7 +108,7 @@ if(@$Config['Useable'] !== true){ // check if the script is completely set up, a
 			'.$messages.'
 			<div class="card col-12 col-md-6 SecondLayer">
 				<blockquote>
-					the script is missing critical information and cannot handle users at the moment. if you are the admin of the script, visit <a href="'.DIRREC.'/admin.php">This Page!</a><br>if you are a user, check back once the script is fully set up.
+					The script is missing critical information and cannot handle users at the moment. If you are the admin of the script, visit <a href="'.DIRREC.'/admin.php">This Page!</a><br>if you are a user, check back once the script is fully set up.
 				</blockquote>
 			</div>
 			<div class="col-12 col-md"></div>
@@ -143,21 +147,18 @@ $title = "Home - ".$Config['Sitename']; // set appropriate title
 include FDSR.DIRECTORY_SEPARATOR."/header.php"; // include the standard header
 ?>
 <div class="row justify-content-center container-fluid FirstLayer">
-	<div class="col-12 col-md h-100 align-self-center"><span class="m-1 d-none d-xl-block"><div class="text-center"><?php echo @$AdsArray['SkyscraperLeft']; ?></div></span></div>
+	<div class="col-12 col-md h-100 align-self-center"><span class="m-1 d-none d-xl-block"><div class="text-center"><?php echo base64_decode(@$AdsArray['SkyscraperLeft']); ?></div></span></div>
 	<div class="col-12 col-md-8  mx-auto text-center ">
 		<h1 class="my-4"><?php echo $Config['Sitename'] ?></h1>
 			<div class="col-12 col-sm-12">
 				<div class="m-4 d-none d-xl-block">
-			        <?php echo @$AdsArray['LeaderboardTop']; ?>
+			        <?php echo base64_decode(@$AdsArray['LeaderboardTop']); ?>
 	    		</div>
 				<div class="m-4 d-none d-lg-block d-xl-none">
-			        <?php echo @$AdsArray['LeaderboardTop']; ?>
-	    		</div>
-				<div class="m-4 d-none d-md-block d-lg-none">
-			        <?php echo @$AdsArray['BannerTop']; ?>
+			        <?php echo  base64_decode(@$AdsArray['BannerTop']); ?>
 	    		</div>
 				<div class="m-4 d-none d-xs-block d-md-none">
-			        <?php echo @$AdsArray['SquareTop']; ?>
+			        <?php echo  base64_decode(@$AdsArray['SquareTop']); ?>
 	    		</div>
 			</div>
 		<div class="SecondLayer card">
@@ -169,7 +170,7 @@ include FDSR.DIRECTORY_SEPARATOR."/header.php"; // include the standard header
 
 			<form action="<?php echo DIRREC ?>/verify.php" method="POST">
 			<h5>Step 1: Select your Currency</h5>
-				<select id="currencySelect" name="currency" class="w-25 h-25">
+				<select id="currencySelect" name="currency" class="w-25 " style="height:2em"">
 					<?php
 					$CurrencyInfo = ''; // iterate over the currencies array and produce valid HTMl for the form and info panel
 					foreach($Config['Currencies'] as $Currency => $Options){
@@ -199,7 +200,7 @@ include FDSR.DIRECTORY_SEPARATOR."/header.php"; // include the standard header
    				});
 				</script>
 				<h5>Step 2: Enter your Address or your FH username</h5>
-				<input type="text" placeholder="Address" name="address" class="w-50 h-25">
+				<input type="text" placeholder="Address" name="address" class="w-50 " style="height:2em"">
 				<div class="w-100"></div>
 				<?php if(isset($Config['Captchas'])){ // check if the script has captchas enabled
 					if(!empty($Config['Captchas'])){ // check if the captchas are actually set - duh
@@ -238,7 +239,7 @@ include FDSR.DIRECTORY_SEPARATOR."/header.php"; // include the standard header
 							</div>';
 						}
 						// add the form input and  let the user know he needs to verify himself
-						echo 'Step 3: Choose a Captcha and verify that you arent a bot:<br><select id="CaptchaUsed" name="CaptchaUsed" class="w-50 h-25">'.$CaptchaOptions.'
+						echo 'Step 3: Choose a Captcha and verify that you arent a bot:<br><select id="CaptchaUsed" name="CaptchaUsed" class="w-50 " style="height:2em"">'.$CaptchaOptions.'
 					</select>';
 					echo '<div class="col-12 col-md-8 offset-md-2">'.$CaptchaWidgets.'</div>'."
 					<script>
@@ -267,8 +268,8 @@ include FDSR.DIRECTORY_SEPARATOR."/header.php"; // include the standard header
 					}
 					echo '<hr>
 					<div class="ThirdLayer card">
-						<p>Referral Programm: Refer users and earn: '.$Config['RefCommission'].'% on all their claims!<br>
-						TIPP: use your FH username to use 1 link for ALL currencies!<br>
+						<p>Referral Program: Refer users and earn: '.$Config['RefCommission'].'% on all their claims!<br>
+						TIP: use your FH username to use 1 link for ALL currencies!<br>
 						'.$Scheme.$Config['Domain'].DIRREC.'/?r={Your FH Username or Address of your Favorite Currency}</p>
 					</div>';
 				}
@@ -277,23 +278,21 @@ include FDSR.DIRECTORY_SEPARATOR."/header.php"; // include the standard header
 		</div>
 		<div class="col-12 col-sm-12">
 			<div class="m-4 d-none d-xl-block">
-				<?php echo @$AdsArray['LeaderboardBottom']; ?>
+				<?php echo base64_decode(@$AdsArray['LeaderboardBottom']); ?>
 			</div>
 			<div class="m-4 d-none d-lg-block d-xl-none">
-				<?php echo @$AdsArray['LeaderboardBottom']; ?>
-			</div>
-			<div class="m-4 d-none d-md-block d-lg-none">
-				<?php echo @$AdsArray['BannerBottom']; ?>
+				<?php echo base64_decode(@$AdsArray['BannerBottom']); ?>
 			</div>
 			<div class="m-4 d-none d-xs-block d-md-none">
-				<?php echo @$AdsArray['SquareBottom']; ?>
+				<?php echo base64_decode(@$AdsArray['SquareBottom']); ?>
 			</div>
 		</div>
 	</div>
-<div class="col-12 col-md h-100 align-self-center"><span class="m-1 d-none d-xl-block"><div class="text-center"><?php echo @$AdsArray['SkyscraperRight']; ?></div></span></div>
+<div class="col-12 col-md h-100 align-self-center"><span class="m-1 d-none d-xl-block"><div class="text-center"><?php echo base64_decode(@$AdsArray['SkyscraperRight']); ?></div></span></div>
 </div>
 <?php
 include FDSR.DIRECTORY_SEPARATOR."/footer.php"; // include the standard footer
+ob_end_flush(); // flush the output buffer and send user the page - solves issues with a few hosters.
 
 // 10/10, commenting still better than the admin panel lol
 ?>

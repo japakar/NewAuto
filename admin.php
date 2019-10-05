@@ -13,6 +13,7 @@
 */
 
 // replace backslashes with slashes, Making the behaviour identical on Windows & Linux Systems
+ob_start(); // start output buffering => this allows us to keep the behavior of the script identical on all systems.
 define("DRSR", $_SERVER['DOCUMENT_ROOT']);
 define("FDSR", str_replace("\\","/",dirname(__FILE__)));
 // Determine if the script is inside a subfolder, if it is, isolate the subdirectory from the root path and store it in a Constant
@@ -25,22 +26,27 @@ if(dirname(DRSR) === dirname(FDSR)){
 //allow the script to include files restricted to normal users:
 define("SFR_INC_0_LKEY", true);
 //set the session-related settings to avoid other scripts from messing with these sessions
-if (!file_exists(session_save_path().DIRECTORY_SEPARATOR.DIRREC.'Autofaucet')){
-	mkdir(session_save_path().DIRECTORY_SEPARATOR.DIRREC.'Autofaucet');
+if (!file_exists(session_save_path().DIRREC.DIRECTORY_SEPARATOR.'Autofaucet')){
+	mkdir(session_save_path().DIRREC.DIRECTORY_SEPARATOR.'Autofaucet', 0777, true);
 }
-    session_save_path(session_save_path().DIRECTORY_SEPARATOR.DIRREC.'Autofaucet');
+    session_save_path(session_save_path().DIRREC.DIRECTORY_SEPARATOR.'Autofaucet');
 ini_set('session.gc_probability', 1);
 ini_set('session.gc_maxlifetime', 48*60*60);
 //start the session to save/access variables
 session_start();
 //Load Config, convert it to a parsable PHP array:
-opcache_invalidate("config.php");
 (include FDSR.DIRECTORY_SEPARATOR."config.php") OR die("Something went wrong while trying to load the config file! please make sure your Config file is in the scripts main folder, please also check if PHP has rights to include/require files! (your hosting provider may assist you with this!)");
 
 //Load Functions, if it fails give out an error and end the script.
 (include_once FDSR.DIRECTORY_SEPARATOR."functions.php") OR die("Something went wrong while trying to load the functions file! please make sure your functions file is in the scripts main folder, please also check if PHP has rights to include/require files! (your hosting provider may assist you with this!)");
-$Config = json_decode($Config, true);
-
+if($Config === ""){
+	$Config = array();
+}else{
+	$Config = json_decode($Config, true);
+	if($Config === null){
+		die("Config file is corrupted, please make sure the config is intact");
+	}
+}
 
 if(!empty($_POST)){ // check if a form was submitted. all changes are made via forms, so most of the logic on this page does exactly that.
 	// this if block only Handles the login process and initial Admin Credential process
@@ -97,10 +103,7 @@ if(!empty($_POST)){ // check if a form was submitted. all changes are made via f
 	}
 }
 if(empty($Config)){ // check if the config exists and is ready to be used. if its not useable, return the user to the index file
-	echo'<script type="text/javascript">
-	  setTimeout(function () { location.reload(true); }, 5000);
-	</script>creating a config file - please wait a few seconds!';
-	exit;
+	redirect(DIRREC."/");
 }
 /* ==============================================================================================
  * """"" MAIN SECTION: DISPLAYS LOGIN FORM OR ADMIN PANEL IF LOGGED IN                      =====
@@ -198,16 +201,17 @@ if(!empty($_POST)){ // check if a form was submitted. all changes i made via for
 					$Config['Ads'] = array("MainSet" => array(), "ClaimSet" => array());
 				}
 				foreach($row as $AdKey => $AdVal){ // iterate over all adspaces
+					$AdVal = base64_encode($AdVal);
 					if(contains("Main", $AdKey)){ // check if adspot is in the MainSet
 						$MainAdKey = str_replace("Main","",$AdKey); //Modify the Key
 						if(@$Config['Ads']['MainSet'][$MainAdKey] !== $AdVal){ // check if the value changed
-						$ChangesMade[] = '<b>Main Ads Set</b>: '.$MainAdKey.' changed from <b>"'.@$Config['Ads']['MainSet'][$MainAdKey].'"</b> to <b>"'.$AdVal.'"</b>';
+						$ChangesMade[] = '<b>Main Ads Set</b>: '.$MainAdKey.' changed from <b>"'.base64_decode(@$Config['Ads']['MainSet'][$MainAdKey]).'"</b> to <b>"'.base64_decode($AdVal).'"</b>';
 							$Config['Ads']['MainSet'][$MainAdKey] = $AdVal; //change it and log it
 						}
 					}elseif(contains("Claim", $AdKey)){// check if adspot is in the ClaimSet
 						$ClaimAdKey = str_replace("Claim","",$AdKey);//Modify the key
 						if(@$Config['Ads']['ClaimSet'][$ClaimAdKey] !== $AdVal){// check if the value changed
-						$ChangesMade[] = '<b>Claim Ads Set</b>: '.$ClaimAdKey.' changed from <b>"'.@$Config['Ads']['ClaimSet'][$ClaimAdKey].'"</b> to <b>"'.$AdVal.'"</b>';
+						$ChangesMade[] = '<b>Claim Ads Set</b>: '.$ClaimAdKey.' changed from <b>"'.base64_decode(@$Config['Ads']['ClaimSet'][$ClaimAdKey]).'"</b> to <b>"'.base64_decode($AdVal).'"</b>';
 							$Config['Ads']['ClaimSet'][$ClaimAdKey] = $AdVal; // change it and log it
 						}
 					}
@@ -234,6 +238,11 @@ if(!empty($_POST)){ // check if a form was submitted. all changes i made via for
 				}
 				if($key === "CustomCSS"){
 					$row = base64_encode($row); // base64 encode the CSS becuase it has characters JSON doesnt handle great - at all
+				}
+				if($key === "Sitename"){
+					if($row == ""){
+						$row = "Autofaucet";
+					}
 				}
 				if($key === "Domain"){
 					$UrlArray = parse_url("http://".$row); // convert the url into an array containing each part of the url
@@ -744,7 +753,7 @@ $(function () {
 												<label for="MainLeaderboardTop">Leaderboard Top</label>
 											</div>
 											<div class="col-12 col-sm-8 float-left">
-												<textarea class="w-100 float-left" id="MainLeaderboardTop" type="text" name="Ads[MainLeaderboardTop]" ><?php echo (isset($Config['Ads']['MainSet']['LeaderboardTop']) ? $Config['Ads']['MainSet']['LeaderboardTop'] : "")?></textarea>
+												<textarea class="w-100 float-left" id="MainLeaderboardTop" type="text" name="Ads[MainLeaderboardTop]" ><?php echo (isset($Config['Ads']['MainSet']['LeaderboardTop']) ?  base64_decode($Config['Ads']['MainSet']['LeaderboardTop']): "")?></textarea>
 											</div>
 										</div><hr>
 										<div class="row">
@@ -753,7 +762,7 @@ $(function () {
 												<label for="MainLeaderboardBottom">Leaderboard Bottom</label>
 											</div>
 											<div class="col-12 col-sm-8 float-left">
-												<textarea class="w-100 float-left" id="MainLeaderboardBottom" type="text" name="Ads[MainLeaderboardBottom]" ><?php echo (isset($Config['Ads']['MainSet']['LeaderboardBottom']) ? $Config['Ads']['MainSet']['LeaderboardBottom'] : "")?></textarea>
+												<textarea class="w-100 float-left" id="MainLeaderboardBottom" type="text" name="Ads[MainLeaderboardBottom]" ><?php echo (isset($Config['Ads']['MainSet']['LeaderboardBottom']) ?  base64_decode($Config['Ads']['MainSet']['LeaderboardBottom']): "")?></textarea>
 											</div>
 										</div><hr>
 										<div class="row">
@@ -762,7 +771,7 @@ $(function () {
 												<label for="MainBannerTop">Banner Top</label>
 											</div>
 											<div class="col-12 col-sm-8 float-left">
-												<textarea class="w-100 float-left" id="MainBannerTop" type="text" name="Ads[MainBannerTop]" ><?php echo (isset($Config['Ads']['MainSet']['BannerTop']) ? $Config['Ads']['MainSet']['BannerTop'] : "")?></textarea>
+												<textarea class="w-100 float-left" id="MainBannerTop" type="text" name="Ads[MainBannerTop]" ><?php echo (isset($Config['Ads']['MainSet']['BannerTop']) ?  base64_decode($Config['Ads']['MainSet']['BannerTop']): "")?></textarea>
 											</div>
 										</div><hr>
 										<div class="row">
@@ -771,7 +780,7 @@ $(function () {
 												<label for="MainBannerBottom">Banner Bottom</label>
 											</div>
 											<div class="col-12 col-sm-8 float-left">
-												<textarea class="w-100 float-left" id="MainBannerBottom" type="text" name="Ads[MainBannerBottom]" ><?php echo (isset($Config['Ads']['MainSet']['BannerBottom']) ? $Config['Ads']['MainSet']['BannerBottom'] : "")?></textarea>
+												<textarea class="w-100 float-left" id="MainBannerBottom" type="text" name="Ads[MainBannerBottom]" ><?php echo (isset($Config['Ads']['MainSet']['BannerBottom']) ?  base64_decode($Config['Ads']['MainSet']['BannerBottom']): "")?></textarea>
 											</div>
 										</div><hr>
 										<div class="row">
@@ -780,7 +789,7 @@ $(function () {
 												<label for="MainSquareTop">Square Top</label>
 											</div>
 											<div class="col-12 col-sm-8 float-left">
-												<textarea class="w-100 float-left" id="MainSquareTop" type="text" name="Ads[MainSquareTop]" ><?php echo (isset($Config['Ads']['MainSet']['SquareTop']) ? $Config['Ads']['MainSet']['SquareTop'] : "")?></textarea>
+												<textarea class="w-100 float-left" id="MainSquareTop" type="text" name="Ads[MainSquareTop]" ><?php echo (isset($Config['Ads']['MainSet']['SquareTop']) ?  base64_decode($Config['Ads']['MainSet']['SquareTop']): "")?></textarea>
 											</div>
 										</div><hr>
 										<div class="row">
@@ -789,7 +798,7 @@ $(function () {
 												<label for="MainSquareBottom">Square Bottom</label>
 											</div>
 											<div class="col-12 col-sm-8 float-left">
-												<textarea class="w-100 float-left" id="MainSquareBottom" type="text" name="Ads[MainSquareBottom]" ><?php echo (isset($Config['Ads']['MainSet']['SquareBottom']) ? $Config['Ads']['MainSet']['SquareBottom'] : "")?></textarea>
+												<textarea class="w-100 float-left" id="MainSquareBottom" type="text" name="Ads[MainSquareBottom]" ><?php echo (isset($Config['Ads']['MainSet']['SquareBottom']) ?  base64_decode($Config['Ads']['MainSet']['SquareBottom']): "")?></textarea>
 											</div>
 										</div><hr>
 										<div class="row">
@@ -798,7 +807,7 @@ $(function () {
 												<label for="MainSkyscraperTop">Skyscraper Left</label>
 											</div>
 											<div class="col-12 col-sm-8 float-left">
-												<textarea class="w-100 float-left" id="MainSkyscraperLeft" type="text" name="Ads[MainSkyscraperLeft]" ><?php echo (isset($Config['Ads']['MainSet']['SkyscraperLeft']) ? $Config['Ads']['MainSet']['SkyscraperLeft'] : "")?></textarea>
+												<textarea class="w-100 float-left" id="MainSkyscraperLeft" type="text" name="Ads[MainSkyscraperLeft]" ><?php echo (isset($Config['Ads']['MainSet']['SkyscraperLeft']) ?  base64_decode($Config['Ads']['MainSet']['SkyscraperLeft']): "")?></textarea>
 											</div>
 										</div><hr>
 										<div class="row">
@@ -807,7 +816,7 @@ $(function () {
 												<label for="MainSkyscraperRight">Skyscraper Right</label>
 											</div>
 											<div class="col-12 col-sm-8 float-left">
-												<textarea class="w-100 float-left" id="MainSkyscraperRight" type="text" name="Ads[MainSkyscraperRight]" ><?php echo (isset($Config['Ads']['MainSet']['SkyscraperRight']) ? $Config['Ads']['MainSet']['SkyscraperRight'] : "")?></textarea>
+												<textarea class="w-100 float-left" id="MainSkyscraperRight" type="text" name="Ads[MainSkyscraperRight]" ><?php echo (isset($Config['Ads']['MainSet']['SkyscraperRight']) ?  base64_decode($Config['Ads']['MainSet']['SkyscraperRight']) : "")?></textarea>
 											</div>
 										</div><hr>
 									</div>
@@ -821,7 +830,7 @@ $(function () {
 												<label for="ClaimLeaderboardTop">Leaderboard Top</label>
 											</div>
 											<div class="col-12 col-sm-8 float-left">
-												<textarea class="w-100 float-left" id="ClaimLeaderboardTop" type="text" name="Ads[ClaimLeaderboardTop]" ><?php echo (isset($Config['Ads']['ClaimSet']['LeaderboardTop']) ? $Config['Ads']['ClaimSet']['LeaderboardTop'] : "")?></textarea>
+												<textarea class="w-100 float-left" id="ClaimLeaderboardTop" type="text" name="Ads[ClaimLeaderboardTop]" ><?php echo (isset($Config['Ads']['ClaimSet']['LeaderboardTop']) ?  base64_decode($Config['Ads']['ClaimSet']['LeaderboardTop']) : "")?></textarea>
 											</div>
 										</div><hr>
 										<div class="row">
@@ -830,7 +839,7 @@ $(function () {
 												<label for="ClaimLeaderboardBottom">Leaderboard Bottom</label>
 											</div>
 											<div class="col-12 col-sm-8 float-left">
-												<textarea class="w-100 float-left" id="ClaimLeaderboardBottom" type="text" name="Ads[ClaimLeaderboardBottom]" ><?php echo (isset($Config['Ads']['ClaimSet']['LeaderboardBottom']) ? $Config['Ads']['ClaimSet']['LeaderboardBottom'] : "")?></textarea>
+												<textarea class="w-100 float-left" id="ClaimLeaderboardBottom" type="text" name="Ads[ClaimLeaderboardBottom]" ><?php echo (isset($Config['Ads']['ClaimSet']['LeaderboardBottom']) ?  base64_decode($Config['Ads']['ClaimSet']['LeaderboardBottom']) : "")?></textarea>
 											</div>
 										</div><hr>
 										<div class="row">
@@ -839,7 +848,7 @@ $(function () {
 												<label for="ClaimBannerTop">Banner Top</label>
 											</div>
 											<div class="col-12 col-sm-8 float-left">
-												<textarea class="w-100 float-left" id="ClaimBannerTop" type="text" name="Ads[ClaimBannerTop]" ><?php echo (isset($Config['Ads']['ClaimSet']['BannerTop']) ? $Config['Ads']['ClaimSet']['BannerTop'] : "")?></textarea>
+												<textarea class="w-100 float-left" id="ClaimBannerTop" type="text" name="Ads[ClaimBannerTop]" ><?php echo (isset($Config['Ads']['ClaimSet']['BannerTop']) ?  base64_decode($Config['Ads']['ClaimSet']['BannerTop']) : "")?></textarea>
 											</div>
 										</div><hr>
 										<div class="row">
@@ -848,7 +857,7 @@ $(function () {
 												<label for="ClaimBannerBottom">Banner Bottom</label>
 											</div>
 											<div class="col-12 col-sm-8 float-left">
-												<textarea class="w-100 float-left" id="ClaimBannerBottom" type="text" name="Ads[ClaimBannerBottom]" ><?php echo (isset($Config['Ads']['ClaimSet']['BannerBottom']) ? $Config['Ads']['ClaimSet']['BannerBottom'] : "")?></textarea>
+												<textarea class="w-100 float-left" id="ClaimBannerBottom" type="text" name="Ads[ClaimBannerBottom]" ><?php echo (isset($Config['Ads']['ClaimSet']['BannerBottom']) ?  base64_decode($Config['Ads']['ClaimSet']['BannerBottom']) : "")?></textarea>
 											</div>
 										</div><hr>
 										<div class="row">
@@ -857,7 +866,7 @@ $(function () {
 												<label for="ClaimSquareTop">Square Top</label>
 											</div>
 											<div class="col-12 col-sm-8 float-left">
-												<textarea class="w-100 float-left" id="ClaimSquareTop" type="text" name="Ads[ClaimSquareTop]" ><?php echo (isset($Config['Ads']['ClaimSet']['SquareTop']) ? $Config['Ads']['ClaimSet']['SquareTop'] : "")?></textarea>
+												<textarea class="w-100 float-left" id="ClaimSquareTop" type="text" name="Ads[ClaimSquareTop]" ><?php echo (isset($Config['Ads']['ClaimSet']['SquareTop']) ?  base64_decode($Config['Ads']['ClaimSet']['SquareTop']) : "")?></textarea>
 											</div>
 										</div><hr>
 										<div class="row">
@@ -866,7 +875,7 @@ $(function () {
 												<label for="ClaimSquareBottom">Square Bottom</label>
 											</div>
 											<div class="col-12 col-sm-8 float-left">
-												<textarea class="w-100 float-left" id="ClaimSquareBottom" type="text" name="Ads[ClaimSquareBottom]" ><?php echo (isset($Config['Ads']['ClaimSet']['SquareBottom']) ? $Config['Ads']['ClaimSet']['SquareBottom'] : "")?></textarea>
+												<textarea class="w-100 float-left" id="ClaimSquareBottom" type="text" name="Ads[ClaimSquareBottom]" ><?php echo (isset($Config['Ads']['ClaimSet']['SquareBottom']) ?  base64_decode($Config['Ads']['ClaimSet']['SquareBottom']) : "")?></textarea>
 											</div>
 										</div><hr>
 										<div class="row">
@@ -875,7 +884,7 @@ $(function () {
 												<label for="ClaimSkyscraperTop">Skyscraper Left</label>
 											</div>
 											<div class="col-12 col-sm-8 float-left">
-												<textarea class="w-100 float-left" id="ClaimSkyscraperLeft" type="text" name="Ads[ClaimSkyscraperLeft]" ><?php echo (isset($Config['Ads']['ClaimSet']['SkyscraperLeft']) ? $Config['Ads']['ClaimSet']['SkyscraperLeft'] : "")?></textarea>
+												<textarea class="w-100 float-left" id="ClaimSkyscraperLeft" type="text" name="Ads[ClaimSkyscraperLeft]" ><?php echo (isset($Config['Ads']['ClaimSet']['SkyscraperLeft']) ?  base64_decode($Config['Ads']['ClaimSet']['SkyscraperLeft']) : "")?></textarea>
 											</div>
 										</div><hr>
 										<div class="row">
@@ -884,7 +893,7 @@ $(function () {
 												<label for="ClaimSkyscraperRight">Skyscraper Right</label>
 											</div>
 											<div class="col-12 col-sm-8 float-left">
-												<textarea class="w-100 float-left" id="ClaimSkyscraperRight" type="text" name="Ads[ClaimSkyscraperRight]" ><?php echo (isset($Config['Ads']['ClaimSet']['SkyscraperRight']) ? $Config['Ads']['ClaimSet']['SkyscraperRight'] : "")?></textarea>
+												<textarea class="w-100 float-left" id="ClaimSkyscraperRight" type="text" name="Ads[ClaimSkyscraperRight]" ><?php echo (isset($Config['Ads']['ClaimSet']['SkyscraperRight']) ?  base64_decode($Config['Ads']['ClaimSet']['SkyscraperRight']) : "")?></textarea>
 											</div>
 										</div><hr>
 									</div>
@@ -1008,6 +1017,7 @@ $(function () {
 		</div>
 <?php
 	include FDSR.DIRECTORY_SEPARATOR."/footer.php"; // include the standard footer
+	ob_end_flush(); // flush the output buffer and send user the page - solves issues with a few hosters.
 
 	//finally done commenting this. good lucky making any changes to this future kull lmao
  ?>

@@ -11,7 +11,15 @@ $messages = "";
 function redirect($Path, $Statuscode = 302, $wait = 0){ // litterally just a helper function because i'm lazy
 	if($wait !== 0){
 		header("refresh: ".$wait."; url=".$Path);
-		echo "waiting ".$wait." seconds";
+		include FDSR.DIRECTORY_SEPARATOR."/header.php"; // include the standard heade
+		echo '<div class="row justify-content-center container-fluid FirstLayer">
+			<div class="col-12 col-md"></div>
+			<div class="card col-12 col-md-6 SecondLayer">
+				<h2>redirecting you in '.$wait.' Seconds</h2>
+			</div>
+			<div class="col-12 col-md"></div>
+		</div>';
+		include FDSR.DIRECTORY_SEPARATOR."/footer.php";
 		exit;
 	}
 	header("location: ".$Path, TRUE, $Statuscode);
@@ -232,7 +240,12 @@ function ProcessPayout($amount, $to,$currency,$Apikey, $referrer = null, $Commis
 	}
 }
 function file_put_contents_atom($filename, $data, $flags = 0, $context = null) {
-	if (!is_dir(dirname($filename)) || !is_writable(dirname($filename))) {
+	if (!is_dir(dirname($filename))) {
+		echo "couldnt write to directory: ".dirname($filename)."<br>";
+		echo "Invalid Directory, make sure your script has a 'Data' Directory";
+		exit;
+	}
+	if (!is_writable(dirname($filename))) {
 		echo "Directory is not writeable";
 		exit;
 	}

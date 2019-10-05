@@ -5,6 +5,7 @@
  * ==============================================================================================
 */
 // replace backslashes with slashes, Making the behaviour identical on Windows & Linux Systems
+ob_start(); // start output buffering => this allows us to keep the behavior of the script identical on all systems.
 define("DRSR", $_SERVER['DOCUMENT_ROOT']);
 define("FDSR", str_replace("\\","/",dirname(__FILE__)));
 // Determine if the script is inside a subfolder, if it is, isolate the subdirectory from the root path and store it in a Constant
@@ -17,17 +18,16 @@ if(dirname(DRSR) === dirname(FDSR)){
 //allow the script to include files restricted to normal users:
 define("SFR_INC_0_LKEY", true);
 //set the session-related settings to avoid other scripts from messing with these sessions
-if (!file_exists(session_save_path().DIRECTORY_SEPARATOR.DIRREC.'Autofaucet')){
-	mkdir(session_save_path().DIRECTORY_SEPARATOR.DIRREC.'Autofaucet');
+if (!file_exists(session_save_path().DIRREC.DIRECTORY_SEPARATOR.'Autofaucet')){
+	mkdir(session_save_path().DIRREC.DIRECTORY_SEPARATOR.'Autofaucet', 0777, true);
 }
-    session_save_path(session_save_path().DIRECTORY_SEPARATOR.DIRREC.'Autofaucet');
+    session_save_path(session_save_path().DIRREC.DIRECTORY_SEPARATOR.'Autofaucet');
 ini_set('session.gc_probability', 1);
 ini_set('session.gc_maxlifetime', 48*60*60);
 //start the session to save/access variables
 session_start();
 
 //Load Config, convert it to a parsable PHP array:
-opcache_invalidate("config.php");
 (include FDSR.DIRECTORY_SEPARATOR."config.php") OR die("Something went wrong while trying to load the config file! please make sure your Config file is in the scripts main folder, please also check if PHP has rights to include/require files! (your hosting provider may assist you with this!)");
 //Load Functions, if it fails give out an error and end the script.
 (include_once FDSR.DIRECTORY_SEPARATOR."functions.php") OR die("Something went wrong while trying to load the functions file! please make sure your functions file is in the scripts main folder, please also check if PHP has rights to include/require files! (your hosting provider may assist you with this!)");
@@ -110,7 +110,7 @@ if($_SESSION[$Coin.'claimtime'] < time() - $CConfig['Timer']){ // check if enoug
 			}
 			if($Result['status'] === 200){ //withdraw was a success
 				$_SESSION[$Coin.'RollOver'] = ($Payout + $_SESSION[$Coin.'RollOver']) - $TotalPayout; // set the remaining roll over value
-				$messages = $messages.SuccessMSG("checked","Success! we paid out ".$TotalPayout." ".$Coin." Satoshi to ".$_SESSION[$Coin.'address']);
+				$messages = $messages.SuccessMSG("checked","Success! We paid out ".$TotalPayout." ".$Coin." Satoshi to ".$_SESSION[$Coin.'address']);
 				$UserData['SuccessfulWithdraws'] = $PayoutCycles; // set the last SuccessfulWithdraw to the current PayoutCycle.
 				$PendingTokens = 0; // set the pending tokens to 0,
 				$Payout = round($CConfig['Ammount']*$PendingTokens, 3); // calculate new payout
@@ -119,12 +119,12 @@ if($_SESSION[$Coin.'claimtime'] < time() - $CConfig['Timer']){ // check if enoug
 				$_SESSION['ErrMSG'] =  "Faucethub didnt recognize the address: ".$_SESSION[$Coin.'address'];
 				DestroySession($Coin); // buh-bye
 			}else{ //some error thats non fatal
-				$messages = $messages.ErrorMSG("clear","we encountered an error: ".$Result['message']);
+				$messages = $messages.ErrorMSG("clear","We encountered an error: ".$Result['message']);
 			}
 		}
 		$RemainingRefreshes = $CConfig['PayoutCycle']; // set the refreshes to the payout cycle from the config.
 	}elseif(isset($_COOKIE['CreditsEmpty'])){ // if the user has a CreditsEmpty cookie set, the script wont try to do a withdraw for 1 hour to strain FH less.
-		$messages = $messages.WarningMSG("clear","The Site currently doesnt have any APIcredits, so we didnt send a payout request. we will try once every hour<br>NOTE: you dont loose any coins while waiting for a payout, so you can continue claiming fine");
+		$messages = $messages.WarningMSG("clear","The Site currently doesnt have any API credits so we did not send a payout request. we will try again once every hour<br>NOTE: you do not lose any coins while waiting for a payout, you can continue claiming!");
 	}
 }else{ // no Withdraw so we just set some values for the script to display later.
 	$NextCycle = ceil($UserData['Tokens']/$CConfig['PayoutCycle']);
@@ -153,28 +153,25 @@ if($Timer > 0){ // if the timer isnt 0, we setup the reload timer via JS
  </script>';}
 ?>
 <div class="row justify-content-center container-fluid FirstLayer">
-	<div class="col-12 col-md h-100 align-self-center"><span class="m-1 d-none d-xl-block"><div class="text-center"><?php echo @$AdsArray['SkyscraperLeft']; ?></div></span></div>
+	<div class="col-12 col-md h-100 align-self-center"><span class="m-1 d-none d-xl-block"><div class="text-center"><?php echo base64_decode(@$AdsArray['SkyscraperLeft']); ?></div></span></div>
 	<div class="col-12 col-md-8  mx-auto text-center ">
 		<h1 class="my-4"><?php echo $Config['Sitename'] ?></h1>
 		<div class="col-12 col-sm-12">
 			<div class="m-4 d-none d-xl-block">
-				<?php echo @$AdsArray['LeaderboardTop']; ?>
+				<?php echo base64_decode(@$AdsArray['LeaderboardTop']); ?>
 			</div>
 			<div class="m-4 d-none d-lg-block d-xl-none">
-				<?php echo @$AdsArray['LeaderboardTop']; ?>
+				<?php echo  base64_decode(@$AdsArray['BannerTop']); ?>
 			</div>
-			<div class="m-4 d-none d-md-block d-lg-none">
-				<?php echo @$AdsArray['BannerTop']; ?>
-			</div>
-			<div class="m-4 d-none d-xs-block d-md-none">
-				<?php echo @$AdsArray['SquareTop']; ?>
+			<div class="m-4 d-none d-xs-block d-lg-none">
+				<?php echo  base64_decode(@$AdsArray['SquareTop']); ?>
 			</div>
 		</div>
 		<div class="SecondLayer card">
 			<h3>Claim <?php echo $Coin ?></h3><br>
 			<?php echo $messages ?><br>
 			<hr>
-			<p>Thats it! its this simple. keep this page open and your balance will increase on every pageload! once a bit of time has passed, we will automatically send you a payout to your Faucethub.io Account! in the case of an error, your balance will continue to increase so that you get your full balance on the next payout!</p><br>
+			<p>Thats it! Its this simple. Keep this page open and your balance will increase on every pageload! Once the timer is complete, we will automatically send you a payout to your Faucethub.io Account! In the case of an error, your balance will continue to increase so that you get your full balance on the next payout!</p><br>
 			<div class="progress" style="height:20px;">
     			<div class="progress-bar" role="progressbar" style="width:100%" aria-valuenow="<?php echo $CConfig['Timer'] ?>" aria-valuemin="0" aria-valuemax="<?php echo $CConfig['Timer'] ?>" id="Timer-progress"></div>
 			</div>
@@ -207,23 +204,21 @@ if($Timer > 0){ // if the timer isnt 0, we setup the reload timer via JS
 		</div>
 		<div class="col-12 col-sm-12">
 			<div class="m-4 d-none d-xl-block">
-				<?php echo @$AdsArray['LeaderboardBottom']; ?>
+				<?php echo base64_decode(@$AdsArray['LeaderboardBottom']); ?>
 			</div>
 			<div class="m-4 d-none d-lg-block d-xl-none">
-				<?php echo @$AdsArray['LeaderboardBottom']; ?>
-			</div>
-			<div class="m-4 d-none d-md-block d-lg-none">
-				<?php echo @$AdsArray['BannerBottom']; ?>
+				<?php echo base64_decode(@$AdsArray['BannerBottom']); ?>
 			</div>
 			<div class="m-4 d-none d-xs-block d-md-none">
-				<?php echo @$AdsArray['SquareBottom']; ?>
+				<?php echo base64_decode(@$AdsArray['SquareBottom']); ?>
 			</div>
 		</div>
 	</div>
-<div class="col-12 col-md h-100 align-self-center"><span class="m-1 d-none d-xl-block"><div class="text-center"><?php echo @$AdsArray['SkyscraperRight']; ?></div></span></div>
+<div class="col-12 col-md h-100 align-self-center"><span class="m-1 d-none d-xl-block"><div class="text-center"><?php echo base64_decode(@$AdsArray['SkyscraperRight']); ?></div></span></div>
 </div>
 <?php
 include FDSR.DIRECTORY_SEPARATOR."/footer.php"; // include the standard footer
+ob_end_flush(); // flush the output buffer and send user the page - solves issues with a few hosters.
 
 // Still less work than that Admin panel lmao.
 ?>

@@ -14,6 +14,7 @@ $USE_SHORTLINKS = true;
  * ==============================================================================================
 */
 // replace backslashes with slashes, Making the behaviour identical on Windows & Linux Systems
+ob_start(); // start output buffering => this allows us to keep the behavior of the script identical on all systems.
 define("DRSR", $_SERVER['DOCUMENT_ROOT']);
 define("FDSR", str_replace("\\","/",dirname(__FILE__)));
 // Determine if the script is inside a subfolder, if it is, isolate the subdirectory from the root path and store it in a Constant
@@ -26,17 +27,16 @@ if(dirname(DRSR) === dirname(FDSR)){
 //allow the script to include files restricted to normal users:
 define("SFR_INC_0_LKEY", true);
 //set the session-related settings to avoid other scripts from messing with these sessions
-if (!file_exists(session_save_path().DIRECTORY_SEPARATOR.DIRREC.'Autofaucet')){
-	mkdir(session_save_path().DIRECTORY_SEPARATOR.DIRREC.'Autofaucet');
+if (!file_exists(session_save_path().DIRREC.DIRECTORY_SEPARATOR.'Autofaucet')){
+	mkdir(session_save_path().DIRREC.DIRECTORY_SEPARATOR.'Autofaucet', 0777, true);
 }
-    session_save_path(session_save_path().DIRECTORY_SEPARATOR.DIRREC.'Autofaucet');
+    session_save_path(session_save_path().DIRREC.DIRECTORY_SEPARATOR.'Autofaucet');
 ini_set('session.gc_probability', 1);
 ini_set('session.gc_maxlifetime', 48*60*60);
 //start the session to save/access variables
 session_start();
 
 //Load Config, convert it to a parsable PHP array:
-opcache_invalidate("config.php");
 (include FDSR.DIRECTORY_SEPARATOR."config.php") OR die("Something went wrong while trying to load the config file! please make sure your Config file is in the scripts main folder, please also check if PHP has rights to include/require files! (your hosting provider may assist you with this!)");
 //Load Functions, if it fails give out an error and end the script.
 (include_once FDSR.DIRECTORY_SEPARATOR."functions.php") OR die("Something went wrong while trying to load the functions file! please make sure your functions file is in the scripts main folder, please also check if PHP has rights to include/require files! (your hosting provider may assist you with this!)");
@@ -255,5 +255,6 @@ if(empty($_GET)){ // check if the user is returning from a shortink, if not, che
 
 
 // easy commenting, not so easy developing. that shortener and captcha implementation is a miracle tbh
+ob_end_flush(); // flush the output buffer and send user the page - solves issues with a few hosters.
 
 ?>
